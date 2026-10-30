@@ -1,0 +1,250 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: employees
+    description: Super-admin employee management
+  - name: telegram
+    description: Property listing notifications
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /staff:
+    get:
+      operationId: listEmployees
+      tags: [employees]
+      summary: List employees
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Employee list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeList"
+        "401":
+          description: Authentication required
+        "403":
+          description: Super-admin access required
+    post:
+      operationId: createEmployee
+      tags: [employees]
+      summary: Create employee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInput"
+      responses:
+        "201":
+          description: Created employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "400":
+          description: Invalid employee data
+        "401":
+          description: Authentication required
+        "403":
+          description: Super-admin access required
+  /staff/{uid}:
+    patch:
+      operationId: updateEmployee
+      tags: [employees]
+      summary: Update employee
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: uid
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeUpdate"
+      responses:
+        "200":
+          description: Updated employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "400":
+          description: Invalid employee data
+        "401":
+          description: Authentication required
+        "403":
+          description: Super-admin access required
+        "404":
+          description: Employee not found
+    delete:
+      operationId: deleteEmployee
+      tags: [employees]
+      summary: Delete employee
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: uid
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Employee deleted
+        "401":
+          description: Authentication required
+        "403":
+          description: Super-admin access required
+        "404":
+          description: Employee not found
+  /properties/{propertyId}/telegram:
+    post:
+      operationId: publishPropertyToTelegram
+      tags: [telegram]
+      summary: Publish a property to Telegram
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: propertyId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramPublishInput"
+      responses:
+        "200":
+          description: Telegram notification sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramPublishResult"
+        "401":
+          description: Authentication required
+        "403":
+          description: Active employee access required
+        "404":
+          description: Property not found
+        "502":
+          description: Telegram delivery failed
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Employee:
+      type: object
+      required: [uid, displayName, phone, role, active, createdAt]
+      properties:
+        uid:
+          type: string
+        displayName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [employee, super_admin]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+    EmployeeList:
+      type: array
+      items:
+        $ref: "#/components/schemas/Employee"
+    EmployeeInput:
+      type: object
+      required: [displayName, phone, role, password]
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [employee, super_admin]
+        password:
+          type: string
+          minLength: 8
+        active:
+          type: boolean
+    EmployeeUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [employee, super_admin]
+        password:
+          type: string
+          minLength: 8
+        active:
+          type: boolean
+    TelegramPublishInput:
+      type: object
+      required: [propertyUrl]
+      properties:
+        propertyUrl:
+          type: string
+          format: uri
+          maxLength: 500
+    TelegramPublishResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
